@@ -1,13 +1,15 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Tray, Menu } = require('electron');
 const { WebSocketServer } = require('ws');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { networkInterfaces } = require('os');
+let tray = null;
+let win = null;
 
 // Esta función crea la ventana del navegador.
 const createWindow = () => {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -20,11 +22,43 @@ const createWindow = () => {
 
   // Carga el archivo index.html en la ventana.
   win.loadFile('index.html');
+
+  // En lugar de cerrar, ocultamos la ventana para que la app siga en segundo plano.
+  win.on('close', (event) => {
+    // app.isQuitting es una bandera personalizada para controlar el cierre real.
+    if (!app.isQuitting) {
+      event.preventDefault();
+      win.hide();
+    }
+  });
 };
 
 // Electron llamará a esta función cuando esté listo.
 app.whenReady().then(() => {
   createWindow();
+  // --- Crear el ícono y menú de la barra de tareas (Tray) ---
+  // ¡IMPORTANTE! Debes tener un archivo 'icon.png' en la raíz de tu proyecto.
+  tray = new Tray(path.join(__dirname, 'icon.png'));
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Abrir Michi',
+      click: () => {
+        win.show(); // Simplemente muestra la ventana oculta.
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Salir',
+      click: () => {
+        app.isQuitting = true; // Marcamos que estamos saliendo de verdad.
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setToolTip('Michi - Control Remoto');
+  tray.setContextMenu(contextMenu);
 
   // --- Crear servidor HTTP para servir la web del cliente ---
   const server = http.createServer((req, res) => {
@@ -92,15 +126,13 @@ app.whenReady().then(() => {
 
   // Manejo para macOS: si no hay ventanas abiertas, crea una nueva al hacer clic en el ícono del dock.
   app.on('activate', () => {
+    // En macOS es común volver a crear una ventana en la aplicación cuando el
+    // ícono del dock se presiona y no hay otras ventanas abiertas.
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else {
+      win.show(); // Si la ventana está oculta, muéstrala
     }
   });
 });
 
-// Cierra la aplicación cuando todas las ventanas se han cerrado (excepto en macOS).
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
