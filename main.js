@@ -6,12 +6,13 @@ const path = require('path');
 const { networkInterfaces } = require('os');
 let tray = null;
 let win = null;
-
+app.disableHardwareAcceleration();
 // Esta función crea la ventana del navegador.
 const createWindow = () => {
   win = new BrowserWindow({
     width: 800,
     height: 600,
+    backgroundColor: '#f0f0f0',
     webPreferences: {
       // Estas opciones son importantes para este ejemplo simple.
       // Permiten que el código en `index.html` use APIs de Node.js como `process`.
@@ -22,6 +23,9 @@ const createWindow = () => {
 
   // Carga el archivo index.html en la ventana.
   win.loadFile('index.html');
+
+  // Elimina la barra de menú por defecto (File, Edit, etc.).
+  win.removeMenu();
 
   // En lugar de cerrar, ocultamos la ventana para que la app siga en segundo plano.
   win.on('close', (event) => {
